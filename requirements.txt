@@ -1,0 +1,16 @@
+torch
+torchvision
+torchaudio
+ultralytics
+insightface
+onnxruntime
+opencv-python
+numpy
+scikit-learn
+pillow
+tqdm
+sqlalchemy
+streamlit
+chromadb
+mysql-connector-python
+pymysql
