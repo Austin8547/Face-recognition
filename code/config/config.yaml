@@ -1,0 +1,18 @@
+data_acquisition:
+    
+  BATCHES: ["far1", "far2", "far3"]
+  PHOTOS_PER_BATCH: 20
+  CAPTURE_INTERVAL: 1.5
+    
+    
+model:
+  YOLO_MODEL_PATH: "/home/austin/autoattend/weights/yolov8n-face.pt"
+  CONF_THRESHOLD   : 0.5                
+  PADDING          : 20
+
+
+directory:
+  ENROLLMENT_DIR: "/home/austin/autoattend/data/enrollment"
+  EMBEDDINGS_DIR: "/home/austin/autoattend/data/embeddings"
+  
+
