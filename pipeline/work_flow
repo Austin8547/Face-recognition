@@ -1,0 +1,52 @@
+auto_attendance/
+│
+├── README.md                  # Project overview, instructions
+├── requirements.txt           # Python dependencies
+│
+├── config/
+│   ├── config.yaml            # General settings: thresholds, frame rate, paths
+│   ├── yolo_config.yaml       # YOLO detection config (weights, thresholds)
+│   └── face_config.yaml       # Face recognition config (ArcFace / MobileFaceNet)
+│
+├── data/
+│   ├── enrollment/            # Raw images per student
+│   │   ├── student_01/
+│   │   ├── student_02/
+│   │   └── ...
+│   └── embeddings/            # Stored embeddings (.npy or .pkl)
+│       ├── student_01.npy
+│       ├── student_02.npy
+│       └── ...
+│
+├── src/
+│   ├── enrollment/            # Scripts for student registration
+│   │   ├── capture_images.py  # Capture images from camera
+│   │   ├── detect_faces.py    # YOLO face detection
+│   │   └── extract_embeddings.py  # Extract and save embeddings
+│   │
+│   ├── attendance/            # Scripts for live attendance
+│   │   ├── camera_feed.py     # Capture frames from webcam
+│   │   ├── detect_faces.py    # YOLO detection in live frames
+│   │   ├── recognize_faces.py # Compare embeddings with stored ones
+│   │   ├── attendance_logic.py # Cooldown & duplicate detection
+│   │   └── save_attendance.py  # Save to CSV / DB
+│   │
+│   ├── utils/
+│   │   ├── preprocessing.py    # Crop, align, resize faces
+│   │   ├── database.py         # Attendance DB connection
+│   │   └── helpers.py          # Miscellaneous helper functions
+│   │
+│   └── dashboard/
+│       └── visualize.py       # Streamlit / matplotlib dashboard
+│
+├── tests/
+│   ├── test_enrollment.py
+│   └── test_attendance.py
+│
+├── logs/
+│   └── attendance.log
+│
+└── outputs/
+    └── reports/
+        └── attendance_2025-12-16.csv
+
