@@ -13,8 +13,8 @@ def get_connection() -> psycopg2.extensions.connection:
     """Return a new psycopg2 connection to attendence_db."""
     return psycopg2.connect(
         dbname   = "attendence_db",
-        user     = "postgres",
-        password = "austin3647",
+        user     = "user_id",
+        password = "your_password",
         host     = "localhost",
         port     = "5432",
     )
