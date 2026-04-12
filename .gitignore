@@ -1,0 +1,6 @@
+weights/
+__pycache__/
+.vscode/
+.idea/
+data/
+yolo_work/

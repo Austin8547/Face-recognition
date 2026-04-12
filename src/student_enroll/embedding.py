@@ -1,39 +1,30 @@
 import cv2
 import numpy as np
 import os
+import sys
 import pickle
-from yolo_face import YOLOv8_face
-from align import norm_crop
-
-# ── Config ────────────────────────────────────────────────────────────────────
-YOLO_MODEL_PATH    = 'weights/yolov8n-face.onnx'
-ARCFACE_MODEL_PATH = 'weights/w600k_r50.onnx'
-ENROLLMENT_DIR     = '/home/austin/autoattend/data/enrollment'
-EMBEDDINGS_DIR     = '/home/austin/autoattend/data/embeddings'
-IMAGE_SIZE         = 112                # ArcFace input size
+import yaml
+import onnxruntime as ort
 
 
-# ── ArcFace wrapper ───────────────────────────────────────────────────────────
-class ArcFaceONNX:
-    def __init__(self, model_path):
-        self.net = cv2.dnn.readNetFromONNX(model_path)
+from src.utility.yolo_face import YOLOv8_face
+from src.utility.align import norm_crop
+from src.config.config import config
+from src.utility.arcface import ArcFaceONNX
 
-    def preprocess(self, aligned_face):
-        img = cv2.cvtColor(aligned_face, cv2.COLOR_BGR2RGB)
-        img = img.astype(np.float32)
-        img = (img - 127.5) / 128.0          # ArcFace normalisation
-        img = img.transpose(2, 0, 1)         # HWC → CHW
-        blob = img[np.newaxis, ...]           # (1, 3, 112, 112)
-        return blob
 
-    def get_embedding(self, aligned_face):
-        """Returns a normalised 512-d embedding (L2 norm = 1)."""
-        blob = self.preprocess(aligned_face)
-        self.net.setInput(blob)
-        emb = self.net.forward()
-        emb = emb.flatten()
-        emb = emb / np.linalg.norm(emb)
-        return emb
+available = ort.get_available_providers()
+print(f"Available ORT providers: {available}")
+if 'DmlExecutionProvider' not in available:
+    print("WARNING: DirectML not available — check onnxruntime-directml is installed")
+
+
+YOLO_MODEL_PATH    = config["model"]["YOLO_ONNX_PATH"]
+ARCFACE_MODEL_PATH = config["model"]["ARCFACE_MODEL_PATH"]
+ENROLLMENT_DIR     = config["directory"]["ENROLLMENT_DIR"]
+EMBEDDINGS_DIR     = config["directory"]["EMBEDDINGS_DIR"]
+IMAGE_SIZE         = config["model"]["IMAGE_SIZE"]
+
 
 
 # ── Landmark reshape helper ───────────────────────────────────────────────────
@@ -42,14 +33,13 @@ def kpts_to_5x2(kp_flat):
     yolo_face returns landmarks as flat (15,) array: [x0,y0,conf0, x1,y1,conf1, ...]
     align.estimate_norm() expects shape (5, 2) — x,y only.
     """
-    kp = kp_flat.reshape(5, 3)
-    return kp[:, :2].astype(np.float32)
+    return kp_flat.reshape(5, 3)[:, :2].astype(np.float32)
 
 
 # ── Core per-image function ───────────────────────────────────────────────────
 def embed_image(img_bgr, detector, arcface):
     """
-    Detect face → align → embed.
+    Detect face -> align -> embed.
     Returns 512-d normalised embedding, or None if no face detected.
     Picks the highest-confidence detection when multiple faces appear.
     """
@@ -64,17 +54,14 @@ def embed_image(img_bgr, detector, arcface):
     return arcface.get_embedding(aligned)
 
 
-# ── Main pipeline ─────────────────────────────────────────────────────────────
 def main():
-    # Validate directories
     if not os.path.isdir(ENROLLMENT_DIR):
         print(f"Error: enrollment directory not found:\n  {ENROLLMENT_DIR}")
         return
 
     os.makedirs(EMBEDDINGS_DIR, exist_ok=True)
 
-    # Load models
-    print(f"Loading YOLOv8-face  : {YOLO_MODEL_PATH}")
+    print(f"\nLoading YOLOv8-face  : {YOLO_MODEL_PATH}")
     detector = YOLOv8_face(YOLO_MODEL_PATH, conf_thres=0.45, iou_thres=0.5)
 
     print(f"Loading ArcFace ONNX : {ARCFACE_MODEL_PATH}")
@@ -86,14 +73,25 @@ def main():
     ])
 
     if not student_dirs:
-        print("No student folders found in enrollment directory.")
+        print("\nNo student folders found in enrollment directory.")
         return
 
     print(f"\nFound {len(student_dirs)} student(s): {student_dirs}\n")
 
+    skipped  = []
+    processed = []
+
     for student_name in student_dirs:
         student_path = os.path.join(ENROLLMENT_DIR, student_name)
-        image_files  = sorted([
+        out_path     = os.path.join(EMBEDDINGS_DIR, f"{student_name}.pkl")
+
+        # ── skip already embedded students ────────────────────────────
+        if os.path.exists(out_path):
+            print(f"[SKIP] {student_name} — embedding already exists.")
+            skipped.append(student_name)
+            continue
+
+        image_files = sorted([
             f for f in os.listdir(student_path)
             if f.lower().endswith(('.jpg', '.jpeg', '.png'))
         ])
@@ -102,7 +100,7 @@ def main():
             print(f"[{student_name}] No images found, skipping.")
             continue
 
-        print(f"Processing: {student_name}  ({len(image_files)} images)")
+        print(f"Processing: {student_name}  ({len(image_files)} image(s))")
         embeddings = []
 
         for fname in image_files:
@@ -120,19 +118,24 @@ def main():
                 continue
 
             embeddings.append(emb)
+            print(f"  OK      : {fname}")
 
         if not embeddings:
             print(f"  No valid embeddings for '{student_name}', skipping.\n")
             continue
 
-        # Save as /home/austin/autoattend/data/embeddings/student1.pkl
-        out_path = os.path.join(EMBEDDINGS_DIR, f"{student_name}.pkl")
         with open(out_path, 'wb') as f:
             pickle.dump(embeddings, f)
 
-        print(f"  Saved {len(embeddings)}/{len(image_files)} embeddings → {out_path}\n")
+        processed.append(student_name)
+        print(f"  Saved {len(embeddings)}/{len(image_files)} embeddings -> {out_path}\n")
 
-    print("Done. All students processed.")
+    # ── summary ───────────────────────────────────────────────────────
+    print("=" * 50)
+    print(f"Done.")
+    print(f"  Newly processed : {len(processed)}  → {processed}")
+    print(f"  Skipped         : {len(skipped)}  → {skipped}")
+    print("=" * 50)
 
 
 if __name__ == "__main__":

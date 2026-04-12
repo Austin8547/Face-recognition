@@ -32,7 +32,7 @@ def find_webcam(preferred_index):
 
 def main():
     # ── Load config ───────────────────────────────────────────────────────────
-    script_dir  = os.path.dirname(os.path.abspath(__file__))
+    script_dir  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # goes up to src/
     config_path = os.path.join(script_dir, "config", "config.yaml")
 
     try:
