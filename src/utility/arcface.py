@@ -7,7 +7,7 @@ class ArcFaceONNX:
     """ArcFace ONNX wrapper with DirectML (GPU) support."""
 
     def __init__(self, model_path):
-        providers = ['DmlExecutionProvider', 'CPUExecutionProvider']
+        providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
         self.session    = ort.InferenceSession(model_path, providers=providers)
         self.input_name = self.session.get_inputs()[0].name
         print(f"ArcFace running on: {self.session.get_providers()[0]}")

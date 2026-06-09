@@ -33,8 +33,8 @@ class YOLOv8_face:
         self._kpt_x_idx    = np.arange(0, 15, 3)   # [0,3,6,9,12]
         self._kpt_y_idx    = np.arange(1, 15, 3)   # [1,4,7,10,13]
 
-        # ── ONNX Runtime with DirectML (GPU on Windows, no CUDA needed) ──────
-        providers = ['DmlExecutionProvider', 'CPUExecutionProvider']
+        # ── ONNX Runtime with CUDA (GPU on Linux) ──────
+        providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
         self.session    = ort.InferenceSession(path, providers=providers)
         self.input_name = self.session.get_inputs()[0].name
         active          = self.session.get_providers()[0]

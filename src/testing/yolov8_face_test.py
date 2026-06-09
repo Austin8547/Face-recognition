@@ -4,9 +4,10 @@ import sys
 import os
 import cv2
 import time
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from yolo_face import YOLOv8_face
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+from src.utility.yolo_face import YOLOv8_face
+from src.config.config import config
 
 
 def main(model_path, camera_id=0, conf_thres=0.45, iou_thres=0.5):
@@ -86,5 +87,6 @@ def main(model_path, camera_id=0, conf_thres=0.45, iou_thres=0.5):
 
 # ── Entry point — now just one clean line ────────────────────────────────────
 if __name__ == "__main__":
-    MODEL_PATH = r"C:\Users\Austin\Face-recognition\weights\yolov8n-face.onnx"
-    main(model_path=MODEL_PATH, camera_id=0, conf_thres=0.45, iou_thres=0.5)
+    MODEL_PATH = config['model']['YOLO_ONNX_PATH']
+    WEBCAM_INDEX = config['hardware']['WEBCAM_INDEX']
+    main(model_path=MODEL_PATH, camera_id=WEBCAM_INDEX, conf_thres=0.45, iou_thres=0.5)

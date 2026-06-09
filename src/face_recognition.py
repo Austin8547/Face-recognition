@@ -23,7 +23,8 @@ ARCFACE_MODEL_PATH   = config['model']['ARCFACE_MODEL_PATH']
 EMBEDDINGS_DIR       = config['directory']['EMBEDDINGS_DIR']
 IMAGE_SIZE           = config['model']['IMAGE_SIZE']
 
-SIMILARITY_THRESHOLD = config['model']['CONF_THRESHOLD']
+SIMILARITY_THRESHOLD = config['model']['ARCFACE_SIM_THRESH']
+YOLO_CONF_THRESH     = config['model']['YOLO_CONF_THRESH']
 WEBCAM_INDEX         = config['hardware']['WEBCAM_INDEX']
 
 WEBCAM_WIDTH  = 640
@@ -77,7 +78,7 @@ def recognise(embedding, flat_matrix, all_names):
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
     print("Loading YOLO detector...")
-    detector = YOLOv8_face(YOLO_MODEL_PATH, conf_thres=0.45, iou_thres=0.5)
+    detector = YOLOv8_face(YOLO_MODEL_PATH, conf_thres=YOLO_CONF_THRESH, iou_thres=0.5)
 
     print("Loading ArcFace model...")
     arcface = ArcFaceONNX(ARCFACE_MODEL_PATH)
@@ -90,6 +91,10 @@ def main():
     cap.set(cv2.CAP_PROP_FRAME_WIDTH,  WEBCAM_WIDTH)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, WEBCAM_HEIGHT)
 
+    if not cap.isOpened():
+        print(f"Error: Cannot open webcam at index {WEBCAM_INDEX}")
+        return
+
     #  Attendance system init
     attendance = AttendanceManager()
 
@@ -101,11 +106,12 @@ def main():
     prev_time      = time.time()
     frame_idx      = 0
     cached_results = []
+    avg_fps        = 0.0
 
     while True:
         ret, frame = cap.read()
-        if not ret:
-            break
+        if not ret or frame is None:
+            continue
 
         frame_idx += 1
         run_detection = (frame_idx % FRAME_SKIP == 0)
@@ -154,7 +160,12 @@ def main():
         fps       = 1.0 / (curr_time - prev_time + 1e-6)
         prev_time = curr_time
 
-        cv2.putText(frame, f"FPS: {fps:.1f}  Faces: {len(cached_results)}", (20, 40),
+        if avg_fps == 0.0:
+            avg_fps = fps
+        else:
+            avg_fps = (avg_fps * 0.9) + (fps * 0.1)
+
+        cv2.putText(frame, f"FPS: {avg_fps:.1f}  Faces: {len(cached_results)}", (20, 40),
                     cv2.FONT_HERSHEY_DUPLEX, 0.7, (255, 0, 0), 1)
 
         cv2.imshow('AutoAttend - DirectML GPU', frame)

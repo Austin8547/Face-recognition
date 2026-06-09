@@ -6,18 +6,19 @@ data_acquisition:
     
     
 model:
-  YOLO_MODEL_PATH: "C:\\Users\\Austin\\Face-recognition\\weights\\yolov8n-face.pt"
-  YOLO_ONNX_PATH: "C:\\Users\\Austin\\Face-recognition\\weights\\yolov8n-face.onnx"
-  ARC_MODEL_PATH: "C:\\Users\\Austin\\Face-recognition\\weights\\arcface_r100.onnx"
-  ARCFACE_MODEL_PATH: "C:\\Users\\Austin\\Face-recognition\\weights\\w600k_r50.onnx"
+  YOLO_MODEL_PATH: "/home/austin/autoattend/Face-recognition/weights/yolov8n-face.pt"
+  YOLO_ONNX_PATH: "/home/austin/autoattend/Face-recognition/weights/yolov8n-face.onnx"
+  ARC_MODEL_PATH: "/home/austin/autoattend/Face-recognition/weights/arcface.onnx"
+  ARCFACE_MODEL_PATH: "/home/austin/autoattend/Face-recognition/weights/w600k_r50.onnx"
   IMAGE_SIZE: 112
-  CONF_THRESHOLD   : 0.5                
+  YOLO_CONF_THRESH : 0.40
+  ARCFACE_SIM_THRESH: 0.40
   PADDING          : 20
 
 
 directory:
-  ENROLLMENT_DIR: "C:\\Users\\Austin\\Face-recognition\\data\\enrollment"
-  EMBEDDINGS_DIR: "C:\\Users\\Austin\\Face-recognition\\data\\embeddings"
+  ENROLLMENT_DIR: "/home/austin/autoattend/Face-recognition/data/enrollment"
+  EMBEDDINGS_DIR: "/home/austin/autoattend/Face-recognition/data/embeddings"
 
 hardware:
   WEBCAM_INDEX: 0

@@ -1,9 +1,14 @@
 import cv2
 import numpy as np
 import os
+import sys
 import pickle
 import time
 import onnxruntime as ort
+
+# Add the root directory to sys.path to allow 'from src...' imports when running directly
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
 from src.utility.yolo_face import YOLOv8_face
 from src.utility.align import norm_crop
 from src.utility.arcface import ArcFaceONNX
@@ -13,16 +18,19 @@ from src.utility.arcface import ArcFaceONNX
 
 available = ort.get_available_providers()
 print(f"Available ORT providers: {available}")
-if 'DmlExecutionProvider' not in available:
-    print("WARNING: DirectML not available — check onnxruntime-directml is installed")
+if 'CUDAExecutionProvider' not in available:
+    print("WARNING: CUDA not available — falling back to CPU")
 
 # ── Config ────────────────────────────────────────────────────────────────────
-YOLO_MODEL_PATH      = r"C:\Users\Austin\Face-recognition\weights\yolov8n-face.onnx"
-ARCFACE_MODEL_PATH   = r"C:\Users\Austin\Face-recognition\weights\w600k_r50.onnx"
-EMBEDDINGS_DIR       = r"C:\Users\Austin\Face-recognition\data\embeddings"
-IMAGE_SIZE           = 112
-SIMILARITY_THRESHOLD = 0.4
-WEBCAM_INDEX         = 0
+from src.config.config import config
+
+YOLO_MODEL_PATH      = config['model']['YOLO_ONNX_PATH']
+ARCFACE_MODEL_PATH   = config['model']['ARCFACE_MODEL_PATH']
+EMBEDDINGS_DIR       = config['directory']['EMBEDDINGS_DIR']
+IMAGE_SIZE           = config['model']['IMAGE_SIZE']
+SIMILARITY_THRESHOLD = config['model']['ARCFACE_SIM_THRESH']
+YOLO_CONF_THRESH     = config['model']['YOLO_CONF_THRESH']
+WEBCAM_INDEX         = config['hardware']['WEBCAM_INDEX']
 
 # ── FPS optimisation knobs ────────────────────────────────────────────────────
 WEBCAM_WIDTH  = 640   # force 640x480 — don't feed 1080p into YOLO
@@ -57,9 +65,9 @@ def recognise(embedding, db):
     best_name  = 'Unknown'
     best_score = -1.0
     for name, stored_matrix in db.items():
-        mean_score = float(np.dot(stored_matrix, embedding).mean())
-        if mean_score > best_score:
-            best_score = mean_score
+        max_score = float(np.dot(stored_matrix, embedding).max())
+        if max_score > best_score:
+            best_score = max_score
             best_name  = name
 
     if best_score < SIMILARITY_THRESHOLD:
@@ -70,7 +78,7 @@ def recognise(embedding, db):
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
     print("Loading YOLO detector...")
-    detector = YOLOv8_face(YOLO_MODEL_PATH, conf_thres=0.45, iou_thres=0.5)
+    detector = YOLOv8_face(YOLO_MODEL_PATH, conf_thres=YOLO_CONF_THRESH, iou_thres=0.5)
 
     print("Loading ArcFace model...")
     arcface = ArcFaceONNX(ARCFACE_MODEL_PATH)
@@ -92,11 +100,12 @@ def main():
     prev_time      = time.time()
     frame_idx      = 0
     cached_results = []   # list of (box, name, sim) — reused on skipped frames
+    avg_fps        = 0.0
 
     while True:
         ret, frame = cap.read()
-        if not ret:
-            break
+        if not ret or frame is None:
+            continue
 
         frame_idx    += 1
         run_detection = (frame_idx % FRAME_SKIP == 0)
@@ -106,14 +115,9 @@ def main():
             boxes, scores, _, kpts = detector.detect(frame)
 
             for box, kp in zip(boxes, kpts):
-                # Align
                 landmark = kpts_to_5x2(kp)
                 aligned  = norm_crop(frame, landmark, image_size=IMAGE_SIZE)
-
-                # Embed — always batch size 1, no DirectML BatchNorm crash
                 embedding = arcface.get_embedding(aligned)
-
-                # Recognise
                 name, sim = recognise(embedding, db)
                 cached_results.append((box, name, sim))
 
@@ -129,7 +133,13 @@ def main():
         curr_time = time.time()
         fps       = 1.0 / (curr_time - prev_time + 1e-6)
         prev_time = curr_time
-        cv2.putText(frame, f"FPS: {fps:.1f}", (20, 40),
+        
+        if avg_fps == 0.0:
+            avg_fps = fps
+        else:
+            avg_fps = (avg_fps * 0.9) + (fps * 0.1)
+
+        cv2.putText(frame, f"FPS: {avg_fps:.1f}", (20, 40),
                     cv2.FONT_HERSHEY_DUPLEX, 0.7, (255, 0, 0), 1)
 
         cv2.imshow('AutoAttend - DirectML GPU', frame)

@@ -3,9 +3,9 @@ import numpy as np
 import os
 import sys
 import pickle
-import yaml
 import onnxruntime as ort
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from src.utility.yolo_face import YOLOv8_face
 from src.utility.align import norm_crop

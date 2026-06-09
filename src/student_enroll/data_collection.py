@@ -1,14 +1,12 @@
 import cv2
-import yaml
 import os
+import sys
 import time
 import torch
 from ultralytics import YOLO
 
-
-def load_config(config_path):
-    with open(config_path, "r") as f:
-        return yaml.safe_load(f)
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+from src.config.config import config
 
 
 def find_webcam(preferred_index):
@@ -32,15 +30,7 @@ def find_webcam(preferred_index):
 
 def main():
     # ── Load config ───────────────────────────────────────────────────────────
-    script_dir  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # goes up to src/
-    config_path = os.path.join(script_dir, "config", "config.yaml")
-
-    try:
-        config = load_config(config_path)
-    except FileNotFoundError:
-        print(f"Error: Config file not found at {config_path}")
-        return
-
+    # Config is loaded from src.config.config
     # Data acquisition params
     batches          = config['data_acquisition']['BATCHES']
     photos_per_batch = config['data_acquisition']['PHOTOS_PER_BATCH']
@@ -48,7 +38,7 @@ def main():
 
     # Model params
     yolo_model_path = config['model']['YOLO_MODEL_PATH']
-    conf_threshold  = config['model']['CONF_THRESHOLD']
+    conf_threshold  = config['model']['YOLO_CONF_THRESH']
     padding         = config['model']['PADDING']
 
     # Directories
